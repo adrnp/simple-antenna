@@ -15,8 +15,7 @@ classdef WrapperArrayAntenna < handle
         
         MeasurementNoise    % the standard deviation of the noise on the measurements for a rotation in [dB]
         Sensitivity         % the sensitivity of the sensor reading the incoming gain values (effective min gain) [dB]
-        
-        
+
         SensorLosses = 5            % general losses in the sensor
         AntennaEfficiency = 0.8     % percentage for efficiency of the antenna
     end
@@ -125,106 +124,6 @@ classdef WrapperArrayAntenna < handle
             % should return the linear |E| pattern
         end
         
-        % TODO: full pattern in dB function
-
-%%% AN ATTEMPT WITH RESPONSE DIRECTLY - fails since doesn't account for gain %%%
-%         function gp = rotate(obj, source, signalStrength, theta)
-%             % TODO: return the gain pattern that is a result of rotating
-%             % through all the angles of phi for a given angle of theta.
-%             % this is basically a circular cslice of data in the horizontal
-%             % plane.
-%             %
-%             % NOTE: source is a 2x1 vector of the [phi, theta] angle that
-%             % points to the source
-%             %
-%             % NOTE: this should be able to handle multiple sources
-%             
-%             % source information (convert to AzEl)
-%             [~, Nsources] = size(source);
-%             sourceAzEl = phitheta2azel([source(1,:); source(2,:)]);
-%             
-%             % also need to compute the arrival E for the signal
-%             signalE = sqrt(10.^((signalStrength + obj.Element.Gain)/10));
-%             
-%             % steering information
-%             phiRotate = 0:1:360;
-%             thetaSteer = theta;
-%             nphi = length(phiRotate);
-%             
-%             % compute the steering vector for all the steering angles
-%             % desired
-%             fhz = obj.Element.Frequency*1e9;
-%             svs = obj.SteerVec(fhz, phitheta2azel([phiRotate; thetaSteer*ones(1, nphi)]));
-%             
-%             
-%             % compute the array response for all the steered angles
-%             resp = obj.ArrayResponse(fhz*ones(1, nphi), sourceAzEl(1:2,1), svs);
-%             
-%             % convert the response to dB
-%             Enorm = abs(resp.*signalE)/obj.NumElements;
-%     
-%             if Nsources > 1
-%                 Enorm = sum(Enorm)/Nsources;
-%             end
-% 
-%             % convert to power (linear)
-%             Plinear = Enorm.^2;
-% 
-%             % convert to power (dB)
-%             PdB = 10*log10(Plinear) + normrnd(zeros(1, length(Plinear)), obj.MeasurementNoise);
-%             PdB(PdB < obj.Element.MinimumValue) = obj.Element.MinimumValue;
-%             
-%             % create the gain pattern with this normalized data
-%             gp = GainPattern(thetaSteer, phiRotate, PdB);
-%         end
-        
-%%% AN ATTEMPT WITH BEAMSCAN ESTIMATOR - I'm not entirely sure why this isn't working... %%%
-%         function gp = rotate(obj, source, signalStrength, theta)
-%             % TODO: return the gain pattern that is a result of rotating
-%             % through all the angles of phi for a given angle of theta.
-%             % this is basically a circular cslice of data in the horizontal
-%             % plane.
-%             %
-%             % NOTE: source is a 2x1 vector of the [phi, theta] angle that
-%             % points to the source
-%             %
-%             % NOTE: this should be able to handle multiple sources
-%             
-%             % source information (convert to AzEl)
-%             [~, Nsources] = size(source);
-%             sourceAzEl = phitheta2azel([source(1,:); source(2,:)]);
-%             
-%             fhz = obj.Element.Frequency*1e9;
-%             c = physconst('LightSpeed');            % speed of light in [m/s]
-%             lambda = c/fhz;     % the wavelength of the tuned frequency in [m]
-%             
-%             receivePower = db2pow(signalStrength-15);
-%             x = sensorsig(getElementPosition(obj.Array)/lambda, 100, sourceAzEl, 0, receivePower);
-% 
-%             % create the beamscanestimator
-%             bs = phased.BeamscanEstimator2D('SensorArray', obj.Array, ...
-%                                             'OperatingFrequency', fhz, ...
-%                                             'DOAOutputPort', false, ...
-%                                             'AzimuthScanAngles', -90:90, ...
-%                                             'ElevationScanAngles', -90:90);
-%             a = bs(x);
-%             
-%             % steering information
-%             phiRotate = 0:1:360;
-%             thetaSteer = theta;
-%             nphi = length(phiRotate);
-%             angsAzEl = phitheta2azel([phiRotate; thetaSteer*ones(1,nphi)]);
-%             
-%             % interp appraoch
-%             [X, Y] = meshgrid(-90:90, -90:90);
-%             rss = interp2(X, Y, a, angsAzEl(1,:)', angsAzEl(2,:)');
-%             rss = mag2db(rss);
-%             rss(rss < -67) = -67;
-% 
-%             % create the gain pattern with this normalized data
-%             gp = GainPattern(thetaSteer, phiRotate, rss);
-%         end
-        
         %%% USING DIRECTIVITY AND EFFICIENCY %%%
         function gp = rotate(obj, source, signalStrength, theta)
             % TODO: return the gain pattern that is a result of rotating
@@ -323,8 +222,7 @@ classdef WrapperArrayAntenna < handle
             % given position with sources given by the InterferenceSource
             % objects (sources) with the antenna steered to the theta
             % angle, thetaSteer
-            
-            
+
             % get the number of sources
             Nsources = length(sources);
             
@@ -362,6 +260,17 @@ classdef WrapperArrayAntenna < handle
                               'Position', antennaPos, ...
                               'HeightAboveSource', antennaPos(3), ...
                               'Distance2DFromSource', d');
+        end
+        
+        function [] = plot(obj)
+            % plot  plot the array pattern as a normalized power dB pattern
+            % using the phased array toolbox plotting function
+
+            pattern(obj.Array, obj.Element.Frequency*1e9, -180:180, -90:90, ...
+                    'PropagationSpeed', physconst('LightSpeed'), ...
+                    'CoordinateSystem', 'polar', ...
+                    'Type', 'powerdb', ...
+                    'Normalize', true);
         end
         
         
