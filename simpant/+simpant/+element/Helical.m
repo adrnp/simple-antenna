@@ -11,6 +11,7 @@ classdef Helical
         N           % the number of turns (larger value means more turns)
         Alpha       % the pitch angle - controls how far the helix grows in [deg]
         MinimumValue    % the minimum value of the pattern in [dB]
+        Efficiency  % efficiency of the antenna (as a decimal - e.g 50% is 0.5)
         
         PatterndB   % the pattern in [dB] for all the points on the mesh
         Pattern     % the normalized pattern for all the points on the mesh
@@ -18,8 +19,8 @@ classdef Helical
     
     % dependent properties based on user set values
     properties (Dependent)
-        C   % the circumference of a turn on the helix (a function of the frequency)
-        S   % the vertical separation between turns
+        C   % the circumference of a turn on the helix (a function of the frequency) in [m]
+        S   % the vertical separation between turns in [m]
         
         Gain        % the max gain of the antenna in [dB]
         Beamwidth   % the half power beam width in [deg]
@@ -68,6 +69,7 @@ classdef Helical
             obj.N = N;
             obj.Alpha = alpha;
             obj.MinimumValue = minValue;
+            obj.Efficiency = 0.7;
             
             % build the mesh for defining the points for the antenna
             [obj.ThetaMesh, obj.PhiMesh] = meshgrid(0:180, 0:360);
@@ -85,14 +87,15 @@ classdef Helical
             s = tan(deg2rad(obj.Alpha))*obj.C;
         end
         
-        function g = get.Gain(obj)
+        function gdb = get.Gain(obj)
             lambda = 3e8/(obj.Frequency*1e9);   % the wavelength
-            g = 6.2*obj.C^2*obj.N*obj.S/lambda^3;
+            g = obj.Efficiency * 12*obj.C^2*obj.N*obj.S/lambda^3;
+            gdb = 10*log10(g);
         end
         
         function bw = get.Beamwidth(obj)
             lambda = 3e8/(obj.Frequency*1e9);   % the wavelength
-            bw = 65*lambda/(obj.C * sqrt(obj.N*obj.S/lambda));
+            bw = 52*lambda/(obj.C * sqrt(obj.N*obj.S/lambda));
         end
         
     end
@@ -141,8 +144,15 @@ classdef Helical
             % plot the pattern
             
             % NOTE: need to convert to spherical coordinates
-            plot3DGainPattern(obj.ThetaMesh, obj.PhiMesh, obj.PatterndB, obj.MinimumValue);
+            simpant.tools.plot3DGainPattern(obj.ThetaMesh, obj.PhiMesh, obj.PatterndB, obj.MinimumValue);
             
+        end
+        
+        function plotSlice(obj)
+            % want to just plot a polar plot of the slice
+            slice_phi0 = obj.PatterndB(1,:);
+            slice_phi180 = obj.PatterndB(181, end-1:-1:2);
+            simpant.tools.plotGainPattern(0:359, [slice_phi0 slice_phi180]);
         end
     end
     
